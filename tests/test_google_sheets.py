@@ -120,7 +120,8 @@ class GoogleSheetsTests(unittest.TestCase):
             ))
             self.assertEqual(app.observations[0]['profstaff'], 'No')
             html = response.body.decode()
-            self.assertLess(html.index('Are you a profstaff?'), html.index('Your name'))
+            self.assertLess(html.index('Your name'), html.index('Are you a profstaff?'))
+            self.assertLess(html.index('Are you a profstaff?'), html.index('Which room are you observing?'))
             self.assertIn('value="No" checked required', html)
             sheet = Mock()
             with patch.object(app, 'get_sheet', return_value=sheet):
