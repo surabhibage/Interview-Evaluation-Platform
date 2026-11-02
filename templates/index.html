@@ -66,6 +66,22 @@
             </div>
 
             <section class="form-card gform-card">
+                <div class="form-group mb-5" role="group" aria-labelledby="profstaffLabel">
+                    <label id="profstaffLabel" class="gform-label">
+                        Are you a profstaff? <span class="required">*</span>
+                    </label>
+                    <div class="room-options-list horizontal-options">
+                        {% for answer in ['Yes', 'No'] %}
+                        <label class="room-radio-item" for="profstaff-{{ answer|lower }}">
+                            <input type="radio" id="profstaff-{{ answer|lower }}" name="profstaff"
+                                   value="{{ answer }}" {% if last_profstaff == answer %}checked{% endif %} required>
+                            <span class="room-radio-dot"></span>
+                            <span class="room-radio-text">{{ answer }}</span>
+                        </label>
+                        {% endfor %}
+                    </div>
+                </div>
+
                 <!-- Question: Observer Name -->
                 <div class="form-group mb-5">
                     <label for="observerName" class="gform-label">
@@ -406,6 +422,7 @@
                                             data-id="{{ obs.id }}"
                                             data-candidate="{{ obs.candidate }}"
                                             data-observer="{{ obs.observer_name }}"
+                                            data-profstaff="{{ obs.profstaff|default('') }}"
                                             data-room="{{ obs.room }}"
                                             data-round="{{ obs.round }}"
                                             data-teamwork="{{ obs.teamwork }}"

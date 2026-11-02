@@ -2,7 +2,7 @@ from fastapi import FastAPI, Request, Form
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from typing import Optional
+from typing import Literal, Optional
 from datetime import datetime
 import os
 import uuid
@@ -170,6 +170,7 @@ async def handle_form(
     request: Request,
     edit_id: Optional[str] = Form(None),
     observer_name: str = Form(...),
+    profstaff: Literal["Yes", "No"] = Form(...),
     room: str = Form(...),
     round_num: str = Form(..., alias="round"),
     candidate: str = Form(...),
@@ -181,6 +182,7 @@ async def handle_form(
 ):
     entry_data = {
         "observer_name": observer_name.strip(),
+        "profstaff": profstaff,
         "room": room,
         "round": round_num,
         "candidate": candidate,
@@ -224,6 +226,7 @@ async def handle_form(
             "success_msg": msg,
             "error_msg": None,
             "last_observer": observer_name.strip(),
+            "last_profstaff": profstaff,
             "last_room": room,
             "last_round": round_num
         }
@@ -285,14 +288,15 @@ async def final_submit(request: Request):
                     obs["initiative"],
                     obs["personal_rep"],
                     obs["work_with"],
-                    obs["comments"]
+                    obs["comments"],
+                    obs.get("profstaff", "")
                 ])
 
             sheet.append_rows(
                 rows_to_insert,
                 value_input_option="RAW",
                 insert_data_option="INSERT_ROWS",
-                table_range="A1:J",
+                table_range="A1:K",
             )
             for obs in pending:
                 obs["submitted_to_sheets"] = True

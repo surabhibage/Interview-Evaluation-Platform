@@ -168,6 +168,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 observerNameInput.value = observer;
             }
 
+            document.querySelectorAll('input[name="profstaff"]').forEach((radio) => {
+                radio.checked = radio.value === btn.dataset.profstaff;
+            });
+
             // 3. Set Room and Round radio buttons
             const targetRoomRadio = document.querySelector(`input[name="room"][value="${room}"]`);
             if (targetRoomRadio) targetRoomRadio.checked = true;

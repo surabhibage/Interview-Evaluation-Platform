@@ -100,13 +100,32 @@ class GoogleSheetsTests(unittest.TestCase):
         with patch.object(app, 'observations', [entry]), patch.object(app, 'get_sheet', return_value=sheet), patch.object(app, 'candidate_data', return_value=([['Test'], [], []], None)), patch.object(app.templates, 'TemplateResponse') as render:
             asyncio.run(app.final_submit(None))
             self.assertTrue(entry['submitted_to_sheets'])
-            self.assertEqual(sheet.append_rows.call_args.kwargs['table_range'], 'A1:J')
+            self.assertEqual(sheet.append_rows.call_args.kwargs['table_range'], 'A1:K')
             self.assertIsNone(render.call_args.kwargs['context']['error_msg'])
             entry['submitted_to_sheets'] = False
             sheet.append_rows.side_effect = RuntimeError('offline')
             asyncio.run(app.final_submit(None))
             self.assertFalse(entry['submitted_to_sheets'])
             self.assertTrue(render.call_args.kwargs['context']['error_msg'])
+
+    def test_profstaff_saved_and_retained(self):
+        from starlette.requests import Request
+        request = Request({'type': 'http', 'method': 'POST', 'path': '/submit', 'headers': [], 'scheme': 'http', 'server': ('test', 80), 'router': app.app.router})
+        with patch.object(app, 'observations', []), patch.object(app, 'candidate_data', return_value=([['Test'], [], []], None)):
+            response = asyncio.run(app.handle_form(
+                request, edit_id=None, observer_name='Observer', profstaff='No',
+                room='Tinker Toys', round_num='Round 1', candidate='Test',
+                teamwork=2.0, initiative=3.0, personal_rep=4.0,
+                work_with='Yes', comments='',
+            ))
+            self.assertEqual(app.observations[0]['profstaff'], 'No')
+            html = response.body.decode()
+            self.assertLess(html.index('Are you a profstaff?'), html.index('Your name'))
+            self.assertIn('value="No" checked required', html)
+            sheet = Mock()
+            with patch.object(app, 'get_sheet', return_value=sheet):
+                asyncio.run(app.final_submit(request))
+            self.assertEqual(sheet.append_rows.call_args.args[0][0][10], 'No')
 
     def test_warning_renders(self):
         from starlette.requests import Request

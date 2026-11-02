@@ -13,8 +13,10 @@ Configure these variables in local `.env` or Render Environment settings:
 
 Tab names are case sensitive and must be different. See `.env.example`.
 Enable the Google Sheets API and share the spreadsheet with the service account as an Editor.
-Observations append to columns A–J of the explicitly selected observations tab;
+Observations append to columns A–K of the explicitly selected observations tab;
 place observation headers in row 1 and keep this table contiguous.
+Add `Profstaff` as the header in column K. The required Yes/No answer is saved
+with each evaluation and remains selected after saving a draft.
 
 The interviewees tab must have these six unique headers in row 1:
 
