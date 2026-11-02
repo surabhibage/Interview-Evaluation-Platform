@@ -5,7 +5,7 @@ from unittest.mock import Mock, patch
 
 import app
 
-HEADERS = ['Interviewee First Name', 'Interviewee Last Name']
+HEADERS = [f'Group {group} {part} Name' for group in range(1, 4) for part in ('First', 'Last')]
 
 
 class GoogleSheetsTests(unittest.TestCase):
@@ -17,17 +17,38 @@ class GoogleSheetsTests(unittest.TestCase):
         })
         self.env.start()
         self.addCleanup(self.env.stop)
-        app._candidate_cache.update(key=None, names=[], error=None, expires_at=0)
+        app._candidate_cache.update(key=None, groups=[[], [], []], error=None, expires_at=0)
 
     def test_parse_names(self):
         self.assertEqual(app.parse_candidate_rows([
-            [' Interviewee Last Name ', 'Interviewee First Name'],
+            [' Group 1 Last Name ', 'Group 1 First Name'] + HEADERS[2:],
             [' Lovelace ', ' Ada '], [], ['Lovelace', 'Ada'], ['Solo'],
-        ]), ['Ada Lovelace', 'Solo'])
-        self.assertEqual(app.parse_candidate_rows([HEADERS, [], ['', '']]), [])
+        ]), [['Ada Lovelace', 'Solo'], [], []])
+        self.assertEqual(app.parse_candidate_rows([HEADERS, [], ['', '']]), [[], [], []])
         for rows in ([], [['First Name', 'Last Name']], [HEADERS + [HEADERS[0]]]):
             with self.assertRaises(ValueError):
                 app.parse_candidate_rows(rows)
+
+    def test_preassigned_groups_and_rotation(self):
+        groups = app.parse_candidate_rows([
+            HEADERS,
+            ['Zoe', 'Z', 'Ada', 'A', 'Grace', 'G'],
+            ['Bob', 'B'],
+            ['', '', '', '', 'Lin', 'L'],
+        ])
+        self.assertEqual(groups, [['Bob B', 'Zoe Z'], ['Ada A'], ['Grace G', 'Lin L']])
+        with patch.object(app, 'candidate_data', return_value=(groups, None)):
+            assignments = app.get_round_room_assignments()
+        routes = [
+            ['Tinker Toys', 'Mini Lessons', 'Scenarios'],
+            ['Mini Lessons', 'Scenarios', 'Tinker Toys'],
+            ['Scenarios', 'Tinker Toys', 'Mini Lessons'],
+        ]
+        for group, rooms in zip(groups, routes):
+            for round_number, room in enumerate(rooms, 1):
+                self.assertEqual(assignments[f'Round {round_number}'][room], group)
+        with self.assertRaises(ValueError):
+            app.parse_candidate_rows([HEADERS, ['Ada', 'A', ' Ada ', 'A']])
 
     def test_cache_refresh_failure_recovery_and_empty_list(self):
         book = Mock()
@@ -40,31 +61,31 @@ class GoogleSheetsTests(unittest.TestCase):
         ]
         with patch.object(app, 'get_spreadsheet', return_value=book), patch.object(app, 'monotonic') as clock, patch.object(app.logger, 'exception'):
             clock.return_value = 100
-            self.assertEqual(app.candidate_data(), (['Ada Lovelace'], None))
+            self.assertEqual(app.candidate_data(), ([['Ada Lovelace'], [], []], None))
             clock.return_value = 159
-            self.assertEqual(app.candidate_data(), (['Ada Lovelace'], None))
+            self.assertEqual(app.candidate_data(), ([['Ada Lovelace'], [], []], None))
             self.assertEqual(sheet.get_all_values.call_count, 1)
             clock.return_value = 161
             names, error = app.candidate_data()
-            self.assertEqual(names, ['Ada Lovelace'])
+            self.assertEqual(names, [['Ada Lovelace'], [], []])
             self.assertIn('last successfully loaded', error)
             clock.return_value = 180
             app.candidate_data()
             self.assertEqual(sheet.get_all_values.call_count, 2)
             clock.return_value = 222
-            self.assertEqual(app.candidate_data(), (['Grace Hopper'], None))
+            self.assertEqual(app.candidate_data(), ([['Grace Hopper'], [], []], None))
             clock.return_value = 283
-            self.assertEqual(app.candidate_data()[0], [])
+            self.assertEqual(app.candidate_data()[0], [[], [], []])
             book.worksheet.assert_called_with('Interviewees')
 
     def test_initial_failure_and_configuration_change(self):
         with patch.object(app, 'get_spreadsheet', side_effect=RuntimeError('offline')), patch.object(app.logger, 'exception'):
             names, error = app.candidate_data()
-            self.assertEqual(names, [])
+            self.assertEqual(names, [[], [], []])
             self.assertTrue(error)
-        app._candidate_cache['names'] = ['Old Candidate']
+        app._candidate_cache['groups'] = [['Old Candidate'], [], []]
         with patch.dict(os.environ, {'GOOGLE_INTERVIEWEES_SHEET_NAME': 'New Tab'}), patch.object(app, 'get_spreadsheet', side_effect=RuntimeError('offline')), patch.object(app.logger, 'exception'):
-            self.assertEqual(app.candidate_data()[0], [])
+            self.assertEqual(app.candidate_data()[0], [[], [], []])
 
     def test_observation_tab_and_submission(self):
         book = Mock()
@@ -76,7 +97,7 @@ class GoogleSheetsTests(unittest.TestCase):
                     app.get_sheet()
         entry = dict(candidate='Test', round='Round 1', room='Test', observer_name='Test',
                      teamwork=1, initiative=1, personal_rep=1, work_with='Yes', comments='', submitted_to_sheets=False)
-        with patch.object(app, 'observations', [entry]), patch.object(app, 'get_sheet', return_value=sheet), patch.object(app, 'candidate_data', return_value=(['Test'], None)), patch.object(app.templates, 'TemplateResponse') as render:
+        with patch.object(app, 'observations', [entry]), patch.object(app, 'get_sheet', return_value=sheet), patch.object(app, 'candidate_data', return_value=([['Test'], [], []], None)), patch.object(app.templates, 'TemplateResponse') as render:
             asyncio.run(app.final_submit(None))
             self.assertTrue(entry['submitted_to_sheets'])
             self.assertEqual(sheet.append_rows.call_args.kwargs['table_range'], 'A1:J')
@@ -90,7 +111,7 @@ class GoogleSheetsTests(unittest.TestCase):
     def test_warning_renders(self):
         from starlette.requests import Request
         request = Request({'type': 'http', 'method': 'GET', 'path': '/', 'headers': [], 'scheme': 'http', 'server': ('test', 80), 'router': app.app.router})
-        with patch.object(app, 'candidate_data', return_value=([], 'Names unavailable')):
+        with patch.object(app, 'candidate_data', return_value=([[], [], []], 'Names unavailable')):
             response = asyncio.run(app.home(request))
             self.assertIn('Names unavailable', response.body.decode())
 
