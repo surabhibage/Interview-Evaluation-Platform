@@ -42,26 +42,36 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
 CANDIDATE_CACHE_SECONDS = 60
-_candidate_cache = {"key": None, "names": [], "error": None, "expires_at": 0}
+_candidate_cache = {"key": None, "groups": [[], [], []], "error": None, "expires_at": 0}
 _candidate_cache_lock = Lock()
 
 
 def parse_candidate_rows(rows):
-    required = ("Interviewee First Name", "Interviewee Last Name")
+    required = [
+        (f"Group {group} First Name", f"Group {group} Last Name")
+        for group in range(1, 4)
+    ]
     if not rows:
         raise ValueError("Interviewees tab is empty")
     headers = [str(value).strip() for value in rows[0]]
-    if any(headers.count(header) != 1 for header in required):
-        raise ValueError("Interviewees tab requires unique Interviewee First Name and Interviewee Last Name headers")
-    first_index, last_index = (headers.index(header) for header in required)
-    names = set()
-    for row in rows[1:]:
-        first = str(row[first_index]).strip() if first_index < len(row) else ""
-        last = str(row[last_index]).strip() if last_index < len(row) else ""
-        name = f"{first} {last}".strip()
-        if name:
-            names.add(name)
-    return sorted(names)
+    if any(headers.count(header) != 1 for pair in required for header in pair):
+        raise ValueError("Interviewees tab requires unique Group 1/2/3 First Name and Last Name headers")
+    groups = []
+    assigned = set()
+    for pair in required:
+        first_index, last_index = (headers.index(header) for header in pair)
+        names = set()
+        for row in rows[1:]:
+            first = str(row[first_index]).strip() if first_index < len(row) else ""
+            last = str(row[last_index]).strip() if last_index < len(row) else ""
+            name = f"{first} {last}".strip()
+            if name:
+                names.add(name)
+        if assigned & names:
+            raise ValueError("A candidate appears in more than one group")
+        assigned.update(names)
+        groups.append(sorted(names))
+    return groups
 
 
 def candidate_data():
@@ -69,47 +79,35 @@ def candidate_data():
     key = (os.getenv("GOOGLE_SHEET_ID"), os.getenv("GOOGLE_INTERVIEWEES_SHEET_NAME"))
     with _candidate_cache_lock:
         if _candidate_cache["key"] != key:
-            _candidate_cache.update(key=key, names=[], error=None, expires_at=0)
+            _candidate_cache.update(key=key, groups=[[], [], []], error=None, expires_at=0)
         if monotonic() >= _candidate_cache["expires_at"]:
             try:
                 title = (key[1] or "").strip()
                 if not title:
                     raise ValueError("GOOGLE_INTERVIEWEES_SHEET_NAME must be set")
                 rows = get_spreadsheet().worksheet(title).get_all_values()
-                names = parse_candidate_rows(rows)
+                groups = parse_candidate_rows(rows)
                 _candidate_cache.update(
-                    names=names,
-                    error=None if names else "The interviewees tab contains no candidate names. Add names below the headers.",
+                    groups=groups,
+                    error=None if any(groups) else "The interviewees tab contains no candidate names. Add names below the headers.",
                 )
             except Exception:
                 logger.exception("Unable to load interviewee names from Google Sheets")
                 message = (
                     "Could not refresh interviewee names. Check the Google Sheets connection, "
-                    "GOOGLE_INTERVIEWEES_SHEET_NAME, and the Interviewee First Name / "
-                    "Interviewee Last Name headers."
+                    "GOOGLE_INTERVIEWEES_SHEET_NAME, and the six Group 1/2/3 First Name / "
+                    "Last Name headers. Each candidate must appear in only one group."
                 )
-                if _candidate_cache["names"]:
+                if any(_candidate_cache["groups"]):
                     message += " Showing the last successfully loaded list."
                 _candidate_cache["error"] = message + " Retrying on a page load after 60 seconds."
             _candidate_cache["expires_at"] = monotonic() + CANDIDATE_CACHE_SECONDS
-        return list(_candidate_cache["names"]), _candidate_cache["error"]
+        return [list(group) for group in _candidate_cache["groups"]], _candidate_cache["error"]
 
 
-def load_candidates():
-    return candidate_data()[0]
-
-
-# Divide candidates evenly into 3 rotating room groups across 3 rounds
+# Keep each preassigned group together as it rotates through all three rooms.
 def get_round_room_assignments():
-    candidates = load_candidates()
-    n = len(candidates)
-    # Split into 3 balanced groups
-    s1 = (n + 2) // 3
-    s2 = s1 + (n - s1 + 1) // 2
-
-    g1 = candidates[0:s1]
-    g2 = candidates[s1:s2]
-    g3 = candidates[s2:]
+    (g1, g2, g3), _ = candidate_data()
 
     return {
         "Round 1": {

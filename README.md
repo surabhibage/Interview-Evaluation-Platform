@@ -16,12 +16,34 @@ Enable the Google Sheets API and share the spreadsheet with the service account 
 Observations append to columns A–J of the explicitly selected observations tab;
 place observation headers in row 1 and keep this table contiguous.
 
-The interviewees tab must have `Interviewee First Name` and `Interviewee Last Name`
-headers in row 1. Names are trimmed, combined, deduplicated, and sorted; empty
-rows are skipped. Names refresh on page loads at most once per 60 seconds per
-server process. Connection or header failures show a warning and retain the last
-successfully loaded list in that process. An empty valid tab clears the list.
-Restarting clears the cache. No CSV or sample-name fallback is used.
+The interviewees tab must have these six unique headers in row 1:
+
+| A | B | C | D | E | F |
+| --- | --- | --- | --- | --- | --- |
+| Group 1 First Name | Group 1 Last Name | Group 2 First Name | Group 2 Last Name | Group 3 First Name | Group 3 Last Name |
+
+Place each candidate below the first/last name pair for their assigned group.
+Replace the old two-column headers with this layout; existing names in A–B
+will belong to Group 1 until you move them to another pair. Columns are matched
+by header, so their order can also be changed. Groups may have different sizes;
+blank cells and empty groups are allowed. Names are trimmed, combined,
+deduplicated within each group, and sorted for display. A name appearing in
+multiple groups is treated as an error; give people with identical names distinct
+labels if necessary.
+
+Groups stay together and rotate as follows:
+
+| Group | Round 1 | Round 2 | Round 3 |
+| --- | --- | --- | --- |
+| 1 | Tinker Toys | Mini Lessons | Scenarios |
+| 2 | Mini Lessons | Scenarios | Tinker Toys |
+| 3 | Scenarios | Tinker Toys | Mini Lessons |
+
+Names refresh on page loads at most once per 60 seconds per server process.
+Connection, header, or duplicate-group failures show a warning and retain the
+last successfully loaded groups in that process. A valid tab with headers but
+no names clears all groups. Restarting clears the cache. No CSV or sample-name
+fallback is used.
 Remove any old Render `names.csv` secret file or `NAMES_CSV_PATH` setting if desired;
 they are no longer used.
 
