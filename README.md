@@ -49,4 +49,17 @@ fallback is used.
 Remove any old Render `names.csv` secret file or `NAMES_CSV_PATH` setting if desired;
 they are no longer used.
 
+Draft observations are private to each browser session. Sharing the site link
+opens a separate draft list; editing, deleting, and final submission only affect
+the current browser's observations. The session cookie is HttpOnly and SameSite
+Strict, with Secure enabled on HTTPS. Responses are marked `no-store`.
+
+This is browser separation, without user accounts: people sharing a browser
+profile share its drafts. Drafts remain in process memory and are lost on server
+restart/redeploy or when the browser session cookie is lost. Use one server
+worker/instance with this storage; multiple workers need a shared session store.
+Already submitted Google Sheets rows remain in the central observations tab.
+Existing shared in-memory drafts are not migrated to a browser session.
+
+Install test dependencies with `.venv/bin/pip install -r requirements-dev.txt`.
 Run checks with `.venv/bin/python -m unittest discover -s tests`.

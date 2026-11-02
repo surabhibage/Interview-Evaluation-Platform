@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request, Form
+from fastapi import FastAPI, Request, Form, HTTPException
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -8,6 +8,7 @@ import os
 import uuid
 import json
 import logging
+import secrets
 from time import monotonic
 from threading import Lock
 import gspread
@@ -130,21 +131,44 @@ def get_round_room_assignments():
 def format_score(val: float):
     return int(val) if val.is_integer() else val
 
-# In-memory storage for draft observations
-observations = []
+# Drafts are private to an opaque browser session, never a shared visitor list.
+_browser_drafts = {}
+SESSION_COOKIE = "observation_session"
 
-def get_observations_by_round():
+
+@app.middleware("http")
+async def browser_session(request: Request, call_next):
+    session_id = request.cookies.get(SESSION_COOKIE)
+    if not session_id or session_id not in _browser_drafts:
+        session_id = secrets.token_urlsafe(32)
+        _browser_drafts[session_id] = []
+    request.state.observations = _browser_drafts[session_id]
+    response = await call_next(request)
+    response.set_cookie(
+        SESSION_COOKIE, session_id, httponly=True, samesite="strict",
+        secure=request.url.scheme == "https", path="/",
+    )
+    response.headers["Cache-Control"] = "no-store"
+    return response
+
+
+def get_observations(request):
+    return request.state.observations
+
+
+def get_observations_by_round(observations):
     rounds = ["Round 1", "Round 2", "Round 3"]
     return {
         r: [obs for obs in reversed(observations) if obs.get("round") == r]
         for r in rounds
     }
 
-def count_pending():
+def count_pending(observations):
     return sum(1 for obs in observations if not obs.get("submitted_to_sheets"))
 
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
+    observations = get_observations(request)
     assignments = get_round_room_assignments()
     observed_names = [obs["candidate"] for obs in observations]
     return templates.TemplateResponse(
@@ -154,9 +178,9 @@ async def home(request: Request):
             "assignments_json": json.dumps(assignments),
             "names_error": candidate_data()[1],
             "observations": observations,
-            "observations_by_round": get_observations_by_round(),
+            "observations_by_round": get_observations_by_round(observations),
             "observed_names": observed_names,
-            "pending_count": count_pending(),
+            "pending_count": count_pending(observations),
             "success_msg": None,
             "error_msg": None,
             "last_observer": "",
@@ -180,6 +204,7 @@ async def handle_form(
     work_with: Optional[str] = Form("Yes"),
     comments: Optional[str] = Form("")
 ):
+    observations = get_observations(request)
     entry_data = {
         "observer_name": observer_name.strip(),
         "profstaff": profstaff,
@@ -203,7 +228,9 @@ async def handle_form(
                 obs["submitted_to_sheets"] = False
                 updated = True
                 break
-        msg = f"Updated draft observation for {candidate}!" if updated else f"Draft for {candidate} saved!"
+        if not updated:
+            raise HTTPException(status_code=404, detail="Observation not found")
+        msg = f"Updated draft observation for {candidate}!"
     else:
         # Create new observation with unique id
         entry_data["id"] = uuid.uuid4().hex[:8]
@@ -220,9 +247,9 @@ async def handle_form(
             "assignments_json": json.dumps(assignments),
             "names_error": candidate_data()[1],
             "observations": observations,
-            "observations_by_round": get_observations_by_round(),
+            "observations_by_round": get_observations_by_round(observations),
             "observed_names": observed_names,
-            "pending_count": count_pending(),
+            "pending_count": count_pending(observations),
             "success_msg": msg,
             "error_msg": None,
             "last_observer": observer_name.strip(),
@@ -234,13 +261,15 @@ async def handle_form(
 
 @app.post("/delete/{obs_id}", response_class=HTMLResponse)
 async def delete_observation(request: Request, obs_id: str):
-    global observations
+    observations = get_observations(request)
     deleted_candidate = ""
     for obs in observations:
         if obs.get("id") == obs_id:
             deleted_candidate = obs.get("candidate", "")
             break
-    observations = [obs for obs in observations if obs.get("id") != obs_id]
+    if not any(obs.get("id") == obs_id for obs in observations):
+        raise HTTPException(status_code=404, detail="Observation not found")
+    observations[:] = [obs for obs in observations if obs.get("id") != obs_id]
 
     assignments = get_round_room_assignments()
     observed_names = [obs["candidate"] for obs in observations]
@@ -252,9 +281,9 @@ async def delete_observation(request: Request, obs_id: str):
             "assignments_json": json.dumps(assignments),
             "names_error": candidate_data()[1],
             "observations": observations,
-            "observations_by_round": get_observations_by_round(),
+            "observations_by_round": get_observations_by_round(observations),
             "observed_names": observed_names,
-            "pending_count": count_pending(),
+            "pending_count": count_pending(observations),
             "success_msg": f"Deleted observation for {deleted_candidate}.",
             "error_msg": None,
             "last_observer": "",
@@ -265,6 +294,7 @@ async def delete_observation(request: Request, obs_id: str):
 
 @app.post("/final-submit", response_class=HTMLResponse)
 async def final_submit(request: Request):
+    observations = get_observations(request)
     pending = [obs for obs in observations if not obs.get("submitted_to_sheets")]
 
     if not pending:
@@ -324,9 +354,9 @@ async def final_submit(request: Request):
             "assignments_json": json.dumps(assignments),
             "names_error": candidate_data()[1],
             "observations": observations,
-            "observations_by_round": get_observations_by_round(),
+            "observations_by_round": get_observations_by_round(observations),
             "observed_names": observed_names,
-            "pending_count": count_pending(),
+            "pending_count": count_pending(observations),
             "success_msg": msg,
             "error_msg": err,
             "last_observer": "",

@@ -97,7 +97,7 @@ class GoogleSheetsTests(unittest.TestCase):
                     app.get_sheet()
         entry = dict(candidate='Test', round='Round 1', room='Test', observer_name='Test',
                      teamwork=1, initiative=1, personal_rep=1, work_with='Yes', comments='', submitted_to_sheets=False)
-        with patch.object(app, 'observations', [entry]), patch.object(app, 'get_sheet', return_value=sheet), patch.object(app, 'candidate_data', return_value=([['Test'], [], []], None)), patch.object(app.templates, 'TemplateResponse') as render:
+        with patch.object(app, 'get_observations', return_value=[entry]), patch.object(app, 'get_sheet', return_value=sheet), patch.object(app, 'candidate_data', return_value=([['Test'], [], []], None)), patch.object(app.templates, 'TemplateResponse') as render:
             asyncio.run(app.final_submit(None))
             self.assertTrue(entry['submitted_to_sheets'])
             self.assertEqual(sheet.append_rows.call_args.kwargs['table_range'], 'A1:K')
@@ -111,14 +111,14 @@ class GoogleSheetsTests(unittest.TestCase):
     def test_profstaff_saved_and_retained(self):
         from starlette.requests import Request
         request = Request({'type': 'http', 'method': 'POST', 'path': '/submit', 'headers': [], 'scheme': 'http', 'server': ('test', 80), 'router': app.app.router})
-        with patch.object(app, 'observations', []), patch.object(app, 'candidate_data', return_value=([['Test'], [], []], None)):
+        with patch.object(app, 'get_observations', return_value=[]) as drafts, patch.object(app, 'candidate_data', return_value=([['Test'], [], []], None)):
             response = asyncio.run(app.handle_form(
                 request, edit_id=None, observer_name='Observer', profstaff='No',
                 room='Tinker Toys', round_num='Round 1', candidate='Test',
                 teamwork=2.0, initiative=3.0, personal_rep=4.0,
                 work_with='Yes', comments='',
             ))
-            self.assertEqual(app.observations[0]['profstaff'], 'No')
+            self.assertEqual(drafts.return_value[0]['profstaff'], 'No')
             html = response.body.decode()
             self.assertLess(html.index('Your name'), html.index('Are you a profstaff?'))
             self.assertLess(html.index('Are you a profstaff?'), html.index('Which room are you observing?'))
@@ -131,7 +131,7 @@ class GoogleSheetsTests(unittest.TestCase):
     def test_warning_renders(self):
         from starlette.requests import Request
         request = Request({'type': 'http', 'method': 'GET', 'path': '/', 'headers': [], 'scheme': 'http', 'server': ('test', 80), 'router': app.app.router})
-        with patch.object(app, 'candidate_data', return_value=([[], [], []], 'Names unavailable')):
+        with patch.object(app, 'get_observations', return_value=[]), patch.object(app, 'candidate_data', return_value=([[], [], []], 'Names unavailable')):
             response = asyncio.run(app.home(request))
             self.assertIn('Names unavailable', response.body.decode())
 
