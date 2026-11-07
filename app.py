@@ -50,13 +50,13 @@ _candidate_cache_lock = Lock()
 def parse_candidate_rows(rows):
     required = [
         (f"Group {group} First Name", f"Group {group} Last Name")
-        for group in range(1, 4)
+        for group in "ABC"
     ]
     if not rows:
         raise ValueError("Interviewees tab is empty")
     headers = [str(value).strip() for value in rows[0]]
     if any(headers.count(header) != 1 for pair in required for header in pair):
-        raise ValueError("Interviewees tab requires unique Group 1/2/3 First Name and Last Name headers")
+        raise ValueError("Interviewees tab requires unique Group A/B/C First Name and Last Name headers")
     groups = []
     assigned = set()
     for pair in required:
@@ -96,7 +96,7 @@ def candidate_data():
                 logger.exception("Unable to load interviewee names from Google Sheets")
                 message = (
                     "Could not refresh interviewee names. Check the Google Sheets connection, "
-                    "GOOGLE_INTERVIEWEES_SHEET_NAME, and the six Group 1/2/3 First Name / "
+                    "GOOGLE_INTERVIEWEES_SHEET_NAME, and the six Group A/B/C First Name / "
                     "Last Name headers. Each candidate must appear in only one group."
                 )
                 if any(_candidate_cache["groups"]):
@@ -108,23 +108,23 @@ def candidate_data():
 
 # Keep each preassigned group together as it rotates through all three rooms.
 def get_round_room_assignments():
-    (g1, g2, g3), _ = candidate_data()
+    (group_a, group_b, group_c), _ = candidate_data()
 
     return {
         "Round 1": {
-            "Tinker Toys": sorted(g1),
-            "Mini Lessons": sorted(g2),
-            "Scenarios": sorted(g3)
+            "Tinker Toys": sorted(group_c),
+            "Mini Lessons": sorted(group_a),
+            "Scenarios": sorted(group_b)
         },
         "Round 2": {
-            "Tinker Toys": sorted(g3),
-            "Mini Lessons": sorted(g1),
-            "Scenarios": sorted(g2)
+            "Tinker Toys": sorted(group_b),
+            "Mini Lessons": sorted(group_c),
+            "Scenarios": sorted(group_a)
         },
         "Round 3": {
-            "Tinker Toys": sorted(g2),
-            "Mini Lessons": sorted(g3),
-            "Scenarios": sorted(g1)
+            "Tinker Toys": sorted(group_a),
+            "Mini Lessons": sorted(group_b),
+            "Scenarios": sorted(group_c)
         }
     }
 

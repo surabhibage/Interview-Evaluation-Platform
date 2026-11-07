@@ -5,7 +5,7 @@ from unittest.mock import Mock, patch
 
 import app
 
-HEADERS = [f'Group {group} {part} Name' for group in range(1, 4) for part in ('First', 'Last')]
+HEADERS = [f'Group {group} {part} Name' for group in "ABC" for part in ('First', 'Last')]
 
 
 class GoogleSheetsTests(unittest.TestCase):
@@ -21,7 +21,7 @@ class GoogleSheetsTests(unittest.TestCase):
 
     def test_parse_names(self):
         self.assertEqual(app.parse_candidate_rows([
-            [' Group 1 Last Name ', 'Group 1 First Name'] + HEADERS[2:],
+            [' Group A Last Name ', 'Group A First Name'] + HEADERS[2:],
             [' Lovelace ', ' Ada '], [], ['Lovelace', 'Ada'], ['Solo'],
         ]), [['Ada Lovelace', 'Solo'], [], []])
         self.assertEqual(app.parse_candidate_rows([HEADERS, [], ['', '']]), [[], [], []])
@@ -40,9 +40,9 @@ class GoogleSheetsTests(unittest.TestCase):
         with patch.object(app, 'candidate_data', return_value=(groups, None)):
             assignments = app.get_round_room_assignments()
         routes = [
-            ['Tinker Toys', 'Mini Lessons', 'Scenarios'],
             ['Mini Lessons', 'Scenarios', 'Tinker Toys'],
             ['Scenarios', 'Tinker Toys', 'Mini Lessons'],
+            ['Tinker Toys', 'Mini Lessons', 'Scenarios'],
         ]
         for group, rooms in zip(groups, routes):
             for round_number, room in enumerate(rooms, 1):
