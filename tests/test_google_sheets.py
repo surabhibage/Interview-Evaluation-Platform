@@ -128,6 +128,20 @@ class GoogleSheetsTests(unittest.TestCase):
                 asyncio.run(app.final_submit(request))
             self.assertEqual(sheet.append_rows.call_args.args[0][0][10], 'No')
 
+    def test_room_questions_render_for_saved_observations(self):
+        from fastapi.testclient import TestClient
+        with patch.object(app, 'candidate_data', return_value=([[], [], []], None)), TestClient(app.app) as client:
+            for room, questions in app.ROOM_QUESTIONS.items():
+                response = client.post('/submit', data={
+                    'observer_name': 'Observer', 'profstaff': 'No',
+                    'room': room, 'round': 'Round 2', 'candidate': 'Candidate',
+                    'teamwork': '1.5', 'initiative': '3', 'personal_rep': '4',
+                })
+                self.assertEqual(response.status_code, 200)
+                for index, question in enumerate(questions, 1):
+                    self.assertIn(f'id="question{index}Label">{question}</span>', response.text)
+                    self.assertIn(f'<small>{question}</small>', response.text)
+
     def test_warning_renders(self):
         from starlette.requests import Request
         request = Request({'type': 'http', 'method': 'GET', 'path': '/', 'headers': [], 'scheme': 'http', 'server': ('test', 80), 'router': app.app.router})

@@ -67,8 +67,8 @@ Keep these columns in this order, with headers in row 1:
 | C | Round | Selected interview round |
 | D | Room | Selected activity room |
 | E | Observer | Observer's name |
-| F | Teamwork | Teamwork score |
-| G | Initiative/Problem Solving | Initiative/problem-solving score |
+| F | Question 1 | First question score for the selected room |
+| G | Question 2 | Second question score for the selected room |
 | H | Personal Representation | Personal representation score |
 | I | Work With? | Yes, Maybe, or No |
 | J | Notes | Observer's comments |
@@ -88,7 +88,13 @@ Observers should follow these steps:
 4. Select the room they are observing.
 5. Select the current round.
 6. Under **Candidate Assessment**, select the candidate.
-7. Enter scores for **Team work?**, **Initiative/Problem Solving**, and **Personal Representation**.
+7. Enter scores for the three questions shown for the selected room. Changing rooms updates the questions and clears the ratings. The round only changes candidate assignments.
+
+   | Room | Question 1 | Question 2 | Question 3 |
+   |---|---|---|---|
+   | Tinker Toys | Teamwork/Interpersonal Skills | Initiative/Problem Solving | Personal Representation |
+   | Mini Lessons | Presentation/Public Speaking | Planning/Organization skills | Personal Representation |
+   | Scenarios | Self-Awareness/Growth Mindset | Metacognitive Skills | Personal Representation |
 8. Choose **Yes**, **Maybe**, or **No** for **Would you like to work with them?** Review this selection; it initially defaults to Yes.
 9. Add optional notes with specific examples from the interview.
 10. Click **Save Candidate Evaluation (Draft)**.

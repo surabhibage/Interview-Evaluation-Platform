@@ -115,7 +115,7 @@ The observations tab uses this fixed column order:
 
 | A | B | C | D | E | F | G | H | I | J | K |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Timestamp | Candidate | Round | Room | Observer | Teamwork | Initiative/Problem Solving | Personal Representation | Work With? | Notes | Profstaff |
+| Timestamp | Candidate | Round | Room | Observer | Question 1 | Question 2 | Personal Representation | Work With? | Notes | Profstaff |
 
 ## Refresh and failure handling
 

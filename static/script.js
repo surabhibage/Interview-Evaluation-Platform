@@ -5,7 +5,7 @@ document.addEventListener("DOMContentLoaded", () => {
     function renderWidgetStars(widget, rating) {
         const slots = widget.querySelectorAll(".star-slot");
         const hiddenInput = widget.querySelector('input[type="hidden"]');
-        const scoreDisplay = widget.parentElement.querySelector(".score-display");
+        const scoreDisplay = widget.closest(".assessment-item").querySelector(".score-display");
 
         slots.forEach((slot) => {
             const index = parseInt(slot.dataset.starIndex, 10);
@@ -129,11 +129,25 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    // Update candidate dropdown whenever room or round changes
-    roomRadios.forEach((r) => r.addEventListener("change", () => updateCandidateDropdown()));
+    function updateQuestions() {
+        const questions = window.ROOM_QUESTIONS[getSelectedRoom()];
+        questions.forEach((question, index) => {
+            document.getElementById(`question${index + 1}Label`).textContent = question;
+        });
+    }
+
+    // A room change changes the questions, so require fresh ratings.
+    roomRadios.forEach((r) => r.addEventListener("change", () => {
+        updateQuestions();
+        ["teamwork", "initiative", "personal_rep"].forEach((id) => {
+            setWidgetRating(id, "");
+        });
+        updateCandidateDropdown();
+    }));
     roundRadios.forEach((r) => r.addEventListener("change", () => updateCandidateDropdown()));
 
-    // Initial dropdown population
+    // Initial room questions and dropdown population
+    updateQuestions();
     updateCandidateDropdown();
 
     // ── 3. EDIT OBSERVATION INLINE ──────────────────────────────────────
@@ -180,6 +194,7 @@ document.addEventListener("DOMContentLoaded", () => {
             if (targetRoundRadio) targetRoundRadio.checked = true;
 
             // 4. Refresh dropdown to this room/round and select candidate
+            updateQuestions();
             updateCandidateDropdown(candidate);
 
             // 5. Pre-fill star widgets

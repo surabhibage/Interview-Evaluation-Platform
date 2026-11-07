@@ -10,6 +10,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', path='style.css') }}">
     <script>
+        window.ROOM_QUESTIONS = {{ room_questions | tojson }};
         window.ROOM_ASSIGNMENTS = {{ assignments_json | safe }};
         window.OBSERVED_NAMES = {{ observed_names | tojson | safe }};
     </script>
@@ -220,7 +221,7 @@
                 <!-- Question 1: Team work? (4 Stars with Half-Star Support) -->
                 <div class="assessment-item">
                     <div class="question-header-row">
-                        <h3 class="assessment-question-title">Team work? <span class="required">*</span></h3>
+                        <h3 class="assessment-question-title"><span id="question1Label">{{ room_questions[last_room][0] }}</span> <span class="required">*</span></h3>
                         <span class="score-display"></span>
                     </div>
                     <div class="star-rating-container">
@@ -250,7 +251,7 @@
                 <!-- Question 2: Initiative/Problem Solving (4 Stars with Half-Star) -->
                 <div class="assessment-item">
                     <div class="question-header-row">
-                        <h3 class="assessment-question-title">Initiative/Problem Solving <span class="required">*</span></h3>
+                        <h3 class="assessment-question-title"><span id="question2Label">{{ room_questions[last_room][1] }}</span> <span class="required">*</span></h3>
                         <span class="score-display"></span>
                     </div>
                     <div class="likert-stars-wrapper">
@@ -280,7 +281,7 @@
                 <!-- Question 3: Personal Representation (4 Stars with Half-Star) -->
                 <div class="assessment-item">
                     <div class="question-header-row">
-                        <h3 class="assessment-question-title">Personal Representation <span class="required">*</span></h3>
+                        <h3 class="assessment-question-title"><span id="question3Label">{{ room_questions[last_room][2] }}</span> <span class="required">*</span></h3>
                         <span class="score-display"></span>
                     </div>
                     <div class="likert-stars-wrapper">
@@ -382,8 +383,8 @@
                                     <th>Candidate</th>
                                     <th>Room</th>
                                     <th>Observer</th>
-                                    <th>Teamwork</th>
-                                    <th>Initiative</th>
+                                    <th>Question 1</th>
+                                    <th>Question 2</th>
                                     <th>Personal Rep</th>
                                     <th>Work With?</th>
                                     <th>Notes</th>
@@ -397,9 +398,9 @@
                                     <td class="font-semibold">{{ obs.candidate }}</td>
                                     <td><span class="badge-room">{{ obs.room }}</span></td>
                                     <td>{{ obs.observer_name }}</td>
-                                    <td>{{ obs.teamwork }} ★</td>
-                                    <td>{{ obs.initiative }} ★</td>
-                                    <td>{{ obs.personal_rep }} ★</td>
+                                    <td><small>{{ room_questions[obs.room][0] }}</small><br>{{ obs.teamwork }} ★</td>
+                                    <td><small>{{ room_questions[obs.room][1] }}</small><br>{{ obs.initiative }} ★</td>
+                                    <td><small>{{ room_questions[obs.room][2] }}</small><br>{{ obs.personal_rep }} ★</td>
                                     <td>
                                         <span class="pill-badge pill-{{ obs.work_with|lower }}">
                                             {{ obs.work_with }}

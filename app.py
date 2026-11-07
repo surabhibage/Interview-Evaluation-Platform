@@ -42,6 +42,25 @@ app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
+ROOM_QUESTIONS = {
+    "Tinker Toys": [
+        "Teamwork/Interpersonal Skills",
+        "Initiative/Problem Solving",
+        "Personal Representation",
+    ],
+    "Mini Lessons": [
+        "Presentation/Public Speaking",
+        "Planning/Organization skills",
+        "Personal Representation",
+    ],
+    "Scenarios": [
+        "Self-Awareness/Growth Mindset",
+        "Metacognitive Skills",
+        "Personal Representation",
+    ],
+}
+templates.env.globals["room_questions"] = ROOM_QUESTIONS
+
 CANDIDATE_CACHE_SECONDS = 60
 _candidate_cache = {"key": None, "groups": [[], [], []], "error": None, "expires_at": 0}
 _candidate_cache_lock = Lock()
@@ -205,6 +224,7 @@ async def handle_form(
     comments: Optional[str] = Form("")
 ):
     observations = get_observations(request)
+    # Legacy score keys represent questions 1–3 for the selected room.
     entry_data = {
         "observer_name": observer_name.strip(),
         "profstaff": profstaff,
